@@ -3174,3 +3174,27 @@ footer {
   position: relative !important;
 }
 
+/* Mobile Contact Form Layout Fix */
+@media (max-width: 767px) {
+  .contact-layout {
+    grid-template-columns: 1fr !important;
+    gap: 3rem !important;
+  }
+  
+  /* Mobile Footer Left Align Fix */
+  footer {
+    text-align: left !important;
+  }
+  .footer-bottom {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 1.5rem;
+  }
+  .footer-links {
+    align-items: flex-start !important;
+  }
+  .footer-socials {
+    justify-content: flex-start !important;
+  }
+}
+
