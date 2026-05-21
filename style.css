@@ -547,6 +547,83 @@ nav.scrolled {
   }
 }
 
+/* Hero Social Buttons */
+.hero-socials {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.btn-social {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--f-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  text-decoration: none;
+  border: 1px solid rgba(255, 77, 28, 0.3);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--chrome);
+  padding: 0.75rem 1.4rem;
+  cursor: none;
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-social::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--fire);
+  opacity: 0;
+  transition: opacity 0.4s;
+  z-index: -1;
+  border-radius: 999px;
+}
+
+.btn-social i {
+  font-size: 1.1rem;
+  transition: transform 0.4s;
+}
+
+.btn-social:hover {
+  border-color: var(--fire);
+  color: var(--void);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 0 25px rgba(255, 77, 28, 0.4);
+}
+
+.btn-social:hover::before {
+  opacity: 1;
+}
+
+.btn-social:hover i.icon-pulse {
+  animation: iconPulse 1.2s infinite;
+}
+
+@keyframes iconPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+@media (max-width: 768px) {
+  .hero-socials {
+    flex-direction: column;
+    width: 100%;
+    align-items: stretch;
+  }
+  .btn-social {
+    justify-content: center;
+  }
+}
+
 /* ═══════════════════════════════════════════════════
    TICKER STRIP
    ═══════════════════════════════════════════════════ */
