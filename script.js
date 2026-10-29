@@ -5,9 +5,7 @@
 // ============================================================
 const CONFIG = {
     ACCESS_TOKEN: 'EAAN3PZCvR1aABSxUXSeBAWEPtiLPdlXSYK7I7HHZBmcPmzlL8lFERZCK4OOvHooxgAP4boqZA0Pu54cloLoZAUTJFTcVB1c8cP68bwB9e46SLozxnKNbD3T3aEqxeXln6r5y7CBMuwFCypLV2PgqZAtVMbiii4Ei7XOIScT77hyKHRcN409cxIYvvF5hOBEx6dc5JAOWFsEIBD8BBRLHwSREZAUPlafiSDi80D82ydLNM6G9Rvzc8vCSQZDZD',
-    USERNAME: 'rcreatorix',
-    REELS_LIMIT: 50,
-    POSTS_LIMIT: 50,
+    IG_USER_ID: '17841479016793578',     // numeric Instagram account ID
     GALLERY_LIMIT: 60,
 };
 
