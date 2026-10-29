@@ -3,87 +3,74 @@
 // ============================================================
 // CONFIG — Instagram Basic Display API
 // ============================================================
-// const CONFIG = {
-//     ACCESS_TOKEN: 'EAAN3PZCvR1aABSxUXSeBAWEPtiLPdlXSYK7I7HHZBmcPmzlL8lFERZCK4OOvHooxgAP4boqZA0Pu54cloLoZAUTJFTcVB1c8cP68bwB9e46SLozxnKNbD3T3aEqxeXln6r5y7CBMuwFCypLV2PgqZAtVMbiii4Ei7XOIScT77hyKHRcN409cxIYvvF5hOBEx6dc5JAOWFsEIBD8BBRLHwSREZAUPlafiSDi80D82ydLNM6G9Rvzc8vCSQZDZD',
-//     USERNAME: 'rcreatorix',
-//     REELS_LIMIT: 50,
-//     POSTS_LIMIT: 50,
-//     GALLERY_LIMIT: 60,
-// };
+const CONFIG = {
+    ACCESS_TOKEN: 'EAAN3PZCvR1aABSxUXSeBAWEPtiLPdlXSYK7I7HHZBmcPmzlL8lFERZCK4OOvHooxgAP4boqZA0Pu54cloLoZAUTJFTcVB1c8cP68bwB9e46SLozxnKNbD3T3aEqxeXln6r5y7CBMuwFCypLV2PgqZAtVMbiii4Ei7XOIScT77hyKHRcN409cxIYvvF5hOBEx6dc5JAOWFsEIBD8BBRLHwSREZAUPlafiSDi80D82ydLNM6G9Rvzc8vCSQZDZD',
+    USERNAME: 'rcreatorix',
+    REELS_LIMIT: 50,
+    POSTS_LIMIT: 50,
+    GALLERY_LIMIT: 60,
+};
+
+
+const BASE = 'https://graph.facebook.com/v21.0';
+const FIELDS = 'id,caption,media_type,media_url,thumbnail_url,timestamp,like_count,permalink';
+
+async function igGet(path, params = {}) {
+    const qs = new URLSearchParams({ ...params, access_token: CONFIG.ACCESS_TOKEN });
+    const res = await fetch(`${BASE}/${path}?${qs}`);
+    const data = await res.json();
+    if (!res.ok || data.error) {
+        throw new Error(data.error?.message || `Instagram API failed: ${res.status}`);
+    }
+    return data;
+}
 
 async function fetchInstagram() {
-    const token = CONFIG.ACCESS_TOKEN;
-
-    if (!token || token === 'EAAN3PZCvR1aABSxUXSeBAWEPtiLPdlXSYK7I7HHZBmcPmzlL8lFERZCK4OOvHooxgAP4boqZA0Pu54cloLoZAUTJFTcVB1c8cP68bwB9e46SLozxnKNbD3T3aEqxeXln6r5y7CBMuwFCypLV2PgqZAtVMbiii4Ei7XOIScT77hyKHRcN409cxIYvvF5hOBEx6dc5JAOWFsEIBD8BBRLHwSREZAUPlafiSDi80D82ydLNM6G9Rvzc8vCSQZDZD') {
+    if (!CONFIG.ACCESS_TOKEN || !CONFIG.IG_USER_ID) {
         showTokenSetup();
         return;
     }
-
     try {
-        const params = new URLSearchParams({
-            fields: FIELDS,
-            limit: '100',
-            access_token: token
-        });
-
-        const url = `${BASE}/me/media?${params.toString()}`;
-        const response = await fetch(url);
-        const data = await response.json();
-
-        if (!response.ok || data.error) {
-            console.error('Instagram API Error:', {
-                status: response.status,
-                error: data.error
-            });
-
-            throw new Error(
-                data.error?.message ||
-                `Instagram API request failed: ${response.status}`
-            );
-        }
-
+        const data = await igGet(`${CONFIG.IG_USER_ID}/media`, { fields: FIELDS, limit: 100 });
         allMedia = data.data || [];
 
-        const albums = allMedia.filter(
-            media => media.media_type === 'CAROUSEL_ALBUM'
-        );
-
         await Promise.all(
-            albums.map(async album => {
-                const albumUrl =
-                    `${BASE}/${album.id}/children?` +
-                    new URLSearchParams({
-                        fields: 'id,media_url,media_type,timestamp,thumbnail_url',
-                        access_token: token
-                    });
-
-                const albumResponse = await fetch(albumUrl);
-                const albumData = await albumResponse.json();
-
-                if (!albumResponse.ok || albumData.error) {
-                    console.error(
-                        `Album ${album.id} API error:`,
-                        albumData.error
-                    );
-
-                    albumChildren[album.id] = [];
-                    return;
-                }
-
-                albumChildren[album.id] = albumData.data || [];
-            })
+            allMedia
+                .filter(m => m.media_type === 'CAROUSEL_ALBUM')
+                .map(async album => {
+                    try {
+                        const c = await igGet(`${album.id}/children`, {
+                            fields: 'id,media_url,media_type,timestamp,thumbnail_url'
+                        });
+                        albumChildren[album.id] = c.data || [];
+                    } catch (e) {
+                        console.error(`Album ${album.id} failed`, e);
+                        albumChildren[album.id] = [];
+                    }
+                })
         );
 
-        await fetchProfile(token);
-
+        fetchProfile();
         renderReels();
         renderPosts();
         renderGallery();
-
-    } catch (error) {
-        console.error('Instagram feed failed:', error);
-        showError(error.message);
+    } catch (err) {
+        console.error('Instagram feed failed:', err);
+        showError(err.message);
     }
+}
+
+async function fetchProfile() {
+    try {
+        const data = await igGet(CONFIG.IG_USER_ID, { fields: 'followers_count,media_count' });
+        const statPosts = document.getElementById('stat-posts');
+        const statFollowers = document.getElementById('stat-followers');
+        if (data.media_count && statPosts) statPosts.textContent = data.media_count + '+';
+        if (data.followers_count && statFollowers) {
+            const n = data.followers_count;
+            statFollowers.textContent = n >= 1000 ? (n / 1000).toFixed(1) + 'K' : n;
+        }
+    } catch (e) { /* non-critical */ }
 }
 
 // ============================================================
