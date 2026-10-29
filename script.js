@@ -670,6 +670,38 @@ function openLightbox(src, caption, type = 'IMAGE', albumData = '', index = 0) {
     if (next) next.style.display = currentAlbumItems.length > 1 ? 'block' : 'none';
 }
 
+// ---- Video playback helper -------------------------------------------------
+let videoToken = 0;
+
+function playVideo(url) {
+    const token = ++videoToken;
+    const cap = document.getElementById('lightbox-caption');
+
+    player.source = { type: 'video', sources: [{ src: url, type: 'video/mp4' }] };
+
+    // 'ready' only fires once at init, so wait for the new source to be playable
+    player.once('canplay', () => {
+        if (token !== videoToken) return;          // slide changed / lightbox closed
+        const p = player.play();
+        if (p && typeof p.catch === 'function') {
+            p.catch(() => {
+                // Autoplay with sound was blocked -> retry muted
+                if (token !== videoToken) return;
+                player.muted = true;
+                const p2 = player.play();
+                if (p2 && typeof p2.catch === 'function') p2.catch(() => {});
+            });
+        }
+    });
+}
+
+// Show a friendly message if the video URL is expired or blocked
+player.on('error', () => {
+    const cap = document.getElementById('lightbox-caption');
+    console.error('Video failed to load. The Instagram media URL may have expired or been blocked.');
+    if (cap) cap.textContent = 'Video could not be loaded. Please refresh the page and try again.';
+});
+
 function renderSlide() {
     const item = currentAlbumItems[currentSlideIndex];
     if (!item) return;
@@ -679,12 +711,12 @@ function renderSlide() {
 
     if (img) img.style.display = 'none';
     if (videoWrap) videoWrap.style.display = 'none';
+    videoToken++;               // invalidate any pending play from a previous slide
     player.pause();
 
     if (item.media_type === 'VIDEO') {
-        player.source = { type: 'video', sources: [{ src: item.media_url, type: 'video/mp4' }] };
         if (videoWrap) videoWrap.style.display = 'block';
-        player.once('ready', () => player.play());
+        playVideo(item.media_url);
     } else {
         if (img) { img.src = item.media_url; img.style.display = 'block'; }
     }
@@ -709,7 +741,8 @@ function nextSlide() {
 function closeLightbox() {
     const lb = document.getElementById('lightbox');
     if (!lb) return;
-    player.pause();
+    videoToken++;
+    player.stop();              // pause + reset, stops buffering
     lb.classList.remove('active');
     lb.classList.add('hidden');
     document.body.style.overflow = '';
