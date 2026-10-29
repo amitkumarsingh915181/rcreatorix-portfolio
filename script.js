@@ -1,18 +1,33 @@
 'use strict';
 
 // ============================================================
-// CONFIG — Instagram Basic Display API
+// CONFIG — Instagram API (Facebook Login for Business / Unified login)
 // ============================================================
+// IMPORTANT: Do NOT commit or publish a real token in front-end JS.
+// Paste a NEW token here for local testing only, or better, use a
+// server-side proxy that holds the token.
 const CONFIG = {
-    ACCESS_TOKEN: 'EAAN3PZCvR1aABSxUXSeBAWEPtiLPdlXSYK7I7HHZBmcPmzlL8lFERZCK4OOvHooxgAP4boqZA0Pu54cloLoZAUTJFTcVB1c8cP68bwB9e46SLozxnKNbD3T3aEqxeXln6r5y7CBMuwFCypLV2PgqZAtVMbiii4Ei7XOIScT77hyKHRcN409cxIYvvF5hOBEx6dc5JAOWFsEIBD8BBRLHwSREZAUPlafiSDi80D82ydLNM6G9Rvzc8vCSQZDZD',
+    ACCESS_TOKEN: 'EAAN3PZCvR1aABSxUXSeBAWEPtiLPdlXSYK7I7HHZBmcPmzlL8lFERZCK4OOvHooxgAP4boqZA0Pu54cloLoZAUTJFTcVB1c8cP68bwB9e46SLozxnKNbD3T3aEqxeXln6r5y7CBMuwFCypLV2PgqZAtVMbiii4Ei7XOIScT77hyKHRcN409cxIYvvF5hOBEx6dc5JAOWFsEIBD8BBRLHwSREZAUPlafiSDi80D82ydLNM6G9Rvzc8vCSQZDZD',                    // <-- paste NEW token (local testing only)
     IG_USER_ID: '17841479016793578',     // numeric Instagram account ID
     GALLERY_LIMIT: 60,
 };
 
-
 const BASE = 'https://graph.facebook.com/v21.0';
 const FIELDS = 'id,caption,media_type,media_url,thumbnail_url,timestamp,like_count,permalink';
 
+// ============================================================
+// STATE
+// ============================================================
+let allMedia = [];
+let albumChildren = {};
+let currentAlbumItems = [];
+let currentSlideIndex = 0;
+let galleryFilter = 'all';
+let baseCaption = '';
+
+// ============================================================
+// INSTAGRAM API
+// ============================================================
 async function igGet(path, params = {}) {
     const qs = new URLSearchParams({ ...params, access_token: CONFIG.ACCESS_TOKEN });
     const res = await fetch(`${BASE}/${path}?${qs}`);
@@ -74,7 +89,6 @@ async function fetchProfile() {
 // ============================================================
 // CORE PORTFOLIO LOGIC (Three.js, GSAP, Preloader)
 // ============================================================
-
 (function preload() {
     const bar = document.getElementById('pre-bar');
     const pct = document.getElementById('pre-pct');
@@ -83,9 +97,9 @@ async function fetchProfile() {
     const statuses = ['Initializing', 'Loading assets', 'Building worlds', 'Almost ready'];
     let p = 0, si = 0;
 
-    setTimeout(() => { document.getElementById('pre-s1').classList.add('reveal'); }, 100);
-    setTimeout(() => { document.getElementById('pre-s2').classList.add('reveal'); }, 200);
-    setTimeout(() => { document.getElementById('pre-s3').classList.add('reveal'); }, 320);
+    setTimeout(() => { document.getElementById('pre-s1')?.classList.add('reveal'); }, 100);
+    setTimeout(() => { document.getElementById('pre-s2')?.classList.add('reveal'); }, 200);
+    setTimeout(() => { document.getElementById('pre-s3')?.classList.add('reveal'); }, 320);
 
     const iv = setInterval(() => {
         p += Math.random() * 3.5 + 1.5;
@@ -192,15 +206,17 @@ function initSite() {
     initWebGL();
     initHeroAnims();
     initScrollAnims();
-    initProcessSlider();  // Initialize premium process slider
+    initProcessSlider();
     initNav();
     initCounters();
-    fetchInstagram();    // Mobile Nav Toggle
+    fetchInstagram();
+
+    // Mobile nav toggle
     const navToggle = document.getElementById('nav-toggle');
     const navCenter = document.querySelector('.nav-center');
     const navLinks = document.querySelectorAll('.nav-link');
 
-    if (navToggle) {
+    if (navToggle && navCenter) {
         navToggle.addEventListener('click', () => {
             navToggle.classList.toggle('active');
             navCenter.classList.toggle('open');
@@ -209,12 +225,10 @@ function initSite() {
 
     navLinks.forEach(link => {
         link.addEventListener('click', () => {
-            navToggle.classList.remove('active');
-            navCenter.classList.remove('open');
+            if (navToggle) navToggle.classList.remove('active');
+            if (navCenter) navCenter.classList.remove('open');
         });
     });
-
-    // Cursor dual-ring logic
 }
 
 function initHeroAnims() {
@@ -258,157 +272,83 @@ function initProcessSlider() {
     const processCurve = document.getElementById('process-curve');
     const cards = gsap.utils.toArray('.process-card');
     const dots = gsap.utils.toArray('.indicator-dot');
-    
+
     if (!processCurve || !cards.length) return;
 
-    // Database of the 12 process steps for charcoal/painting master process
     const stepsData = [
-        {
-            num: "01",
-            title: "Inspiration",
-            desc: "Exploring the core vision, gathering references, and defining the emotional and thematic direction of the artwork."
-        },
-        {
-            num: "02",
-            title: "Consultation",
-            desc: "Aligning on select mediums (charcoal or oil painting), dimensions, framing options, and milestone timelines."
-        },
-        {
-            num: "03",
-            title: "Concept Sketch",
-            desc: "Drafting composition thumbnails and digital sketches to experiment with scale, focal points, and lighting dynamics."
-        },
-        {
-            num: "04",
-            title: "Material Choice",
-            desc: "Curating archival-grade cotton papers and selecting specific charcoal weights to match the requested texture."
-        },
-        {
-            num: "05",
-            title: "Base Block-in",
-            desc: "Mapping out exact proportions and structural gestures. This layer ensures visual balance across the canvas."
-        },
-        {
-            num: "06",
-            title: "Value Mapping",
-            desc: "Applying initial gradients to define the light source and laying down primary shadows to set the high-contrast mood."
-        },
-        {
-            num: "07",
-            title: "Blending & Depth",
-            desc: "Using blending stumps and chamois to smooth out gradients, creating soft atmospheric mist and deep transitions."
-        },
-        {
-            num: "08",
-            title: "Detail Rendering",
-            desc: "Obsessively rendering intricate details like skin pores, hair strands, fabric folds, and fine reflections."
-        },
-        {
-            num: "09",
-            title: "Highlight Lifting",
-            desc: "Using specialized erasers to lift charcoal particles, pulling brilliant highlights back out of the deep dark values."
-        },
-        {
-            num: "10",
-            title: "Tone Refinement",
-            desc: "Stepping back to review under varied ambient lighting, adjusting micro-contrasts and overall visual balance."
-        },
-        {
-            num: "11",
-            title: "Fixative Sealing",
-            desc: "Applying museum-grade fixative spray to seal the delicate charcoal particles and prevent smudging permanently."
-        },
-        {
-            num: "12",
-            title: "Framing & Handoff",
-            desc: "Mounting behind UV-protective glass, handcrafting a custom frame, and packing securely for global courier delivery."
-        }
+        { num: "01", title: "Inspiration", desc: "Exploring the core vision, gathering references, and defining the emotional and thematic direction of the artwork." },
+        { num: "02", title: "Consultation", desc: "Aligning on select mediums (charcoal or oil painting), dimensions, framing options, and milestone timelines." },
+        { num: "03", title: "Concept Sketch", desc: "Drafting composition thumbnails and digital sketches to experiment with scale, focal points, and lighting dynamics." },
+        { num: "04", title: "Material Choice", desc: "Curating archival-grade cotton papers and selecting specific charcoal weights to match the requested texture." },
+        { num: "05", title: "Base Block-in", desc: "Mapping out exact proportions and structural gestures. This layer ensures visual balance across the canvas." },
+        { num: "06", title: "Value Mapping", desc: "Applying initial gradients to define the light source and laying down primary shadows to set the high-contrast mood." },
+        { num: "07", title: "Blending & Depth", desc: "Using blending stumps and chamois to smooth out gradients, creating soft atmospheric mist and deep transitions." },
+        { num: "08", title: "Detail Rendering", desc: "Obsessively rendering intricate details like skin pores, hair strands, fabric folds, and fine reflections." },
+        { num: "09", title: "Highlight Lifting", desc: "Using specialized erasers to lift charcoal particles, pulling brilliant highlights back out of the deep dark values." },
+        { num: "10", title: "Tone Refinement", desc: "Stepping back to review under varied ambient lighting, adjusting micro-contrasts and overall visual balance." },
+        { num: "11", title: "Fixative Sealing", desc: "Applying museum-grade fixative spray to seal the delicate charcoal particles and prevent smudging permanently." },
+        { num: "12", title: "Framing & Handoff", desc: "Mounting behind UV-protective glass, handcrafting a custom frame, and packing securely for global courier delivery." }
     ];
 
     let lastActiveIndex = 0;
 
-    // Position updates function
     function updateSlider(progress) {
         const svgElement = processCurve.ownerSVGElement;
         const svgRect = svgElement.getBoundingClientRect();
         const pathLength = processCurve.getTotalLength();
-        
+
         const activeIndex = progress * 11;
         const isMobile = window.innerWidth < 768;
-        const step = isMobile ? 0.125 : 0.08; 
-        
+        const step = isMobile ? 0.125 : 0.08;
+
         cards.forEach((card, i) => {
             const diff = i - activeIndex;
-            // Cards are placed relative to the center (0.5) of the path
             const t = 0.5 + diff * step;
-            
-            // Clamp t within path bounds [0, 1]
             const clampedT = Math.max(0, Math.min(1, t));
             const point = processCurve.getPointAtLength(clampedT * pathLength);
-            
-            // Map coordinates from SVG space (1920x800) to screen pixel space
+
             const screenX = point.x * (svgRect.width / 1920);
             const screenY = point.y * (svgRect.height / 800);
-            
+
             const cardW = isMobile ? 100 : 160;
             const cardH = isMobile ? 135 : 215;
             const x = screenX - cardW / 2;
             const y = screenY - cardH / 2;
-            
+
             const dist = Math.abs(diff);
-            
-            // Active card scales up, inactive ones scale down
             const scale = dist === 0 ? 1.25 : Math.max(0.75, 1.25 - dist * 0.22);
-            
-            // Fading out inactive items softly
             const opacity = Math.max(0.15, 1 - dist * 0.45);
-            
-            // Parallax shift for images inside the mask circle
+
             const img = card.querySelector('img');
-            const imgShift = diff * 25; // opposite direction shift
-            
-            gsap.set(card, {
-                x: x,
-                y: y,
-                scale: scale,
-                opacity: opacity,
-                zIndex: Math.round(100 - dist * 10)
-            });
-            
-            if (img) {
-                gsap.set(img, { x: imgShift });
-            }
-            
-            // Toggle active classes
-            if (dist < 0.5) {
-                card.classList.add('active');
-            } else {
-                card.classList.remove('active');
-            }
+            const imgShift = diff * 25;
+
+            gsap.set(card, { x, y, scale, opacity, zIndex: Math.round(100 - dist * 10) });
+            if (img) gsap.set(img, { x: imgShift });
+
+            if (dist < 0.5) card.classList.add('active');
+            else card.classList.remove('active');
         });
-        
-        // Update details text panel when active step integer changes
+
         const activeInt = Math.round(activeIndex);
         if (activeInt !== lastActiveIndex && activeInt >= 0 && activeInt < 12) {
             lastActiveIndex = activeInt;
-            
-            // Synchronize active indicator dot
+
             dots.forEach((dot, idx) => {
                 dot.classList.toggle('active', idx === activeInt);
             });
-            
-            // Fade detail text panel transition
+
             gsap.to('.process-detail-content', {
                 opacity: 0,
                 y: 15,
                 duration: 0.3,
                 onComplete: () => {
-                    // Update content
-                    document.querySelector('.process-detail-num').textContent = stepsData[activeInt].num;
-                    document.querySelector('.process-detail-title').textContent = stepsData[activeInt].title;
-                    document.querySelector('.process-detail-desc').textContent = stepsData[activeInt].desc;
-                    
-                    // Fade back in
+                    const numEl = document.querySelector('.process-detail-num');
+                    const titleEl = document.querySelector('.process-detail-title');
+                    const descEl = document.querySelector('.process-detail-desc');
+                    if (numEl) numEl.textContent = stepsData[activeInt].num;
+                    if (titleEl) titleEl.textContent = stepsData[activeInt].title;
+                    if (descEl) descEl.textContent = stepsData[activeInt].desc;
+
                     gsap.to('.process-detail-content', {
                         opacity: 1,
                         y: 0,
@@ -420,16 +360,14 @@ function initProcessSlider() {
         }
     }
 
-    // Make scroll length shorter on mobile for better UX
     const scrollEnd = window.innerWidth <= 768 ? '+=2500' : '+=4500';
 
-    // Main ScrollTrigger pinned instance
-    const processTrigger = ScrollTrigger.create({
+    ScrollTrigger.create({
         trigger: '#process',
         pin: true,
         scrub: 1.1,
         start: 'top top',
-        end: scrollEnd, // Responsive scroll length
+        end: scrollEnd,
         id: 'processTrigger',
         snap: {
             snapTo: 1 / 11,
@@ -441,59 +379,44 @@ function initProcessSlider() {
         }
     });
 
-    // Handle dot clicks to scroll to target step
     dots.forEach((dot, idx) => {
         dot.addEventListener('click', () => {
             const st = ScrollTrigger.getById('processTrigger');
             if (st) {
                 const targetScroll = st.start + (st.end - st.start) * (idx / 11);
-                window.scrollTo({
-                    top: targetScroll,
-                    behavior: 'smooth'
-                });
+                window.scrollTo({ top: targetScroll, behavior: 'smooth' });
             }
         });
     });
 
-    // Entrance Animation when the section becomes visible
     gsap.from('#process .process-header', {
         opacity: 0,
         y: -30,
         duration: 1.2,
         ease: 'power3.out',
-        scrollTrigger: {
-            trigger: '#process',
-            start: 'top 80%',
-        }
+        scrollTrigger: { trigger: '#process', start: 'top 80%' }
     });
 
     gsap.from('#process .process-svg', {
         opacity: 0,
         duration: 1.8,
         ease: 'power2.out',
-        scrollTrigger: {
-            trigger: '#process',
-            start: 'top 80%',
-        }
+        scrollTrigger: { trigger: '#process', start: 'top 80%' }
     });
 
-    // Initial render
-    setTimeout(() => {
-        updateSlider(0);
-    }, 150);
+    setTimeout(() => { updateSlider(0); }, 150);
 
-    // Update positions on resize
     window.addEventListener('resize', () => {
         const st = ScrollTrigger.getById('processTrigger');
-        if (st) {
-            updateSlider(st.progress);
-        }
+        if (st) updateSlider(st.progress);
     });
 }
 
 function initNav() {
     const nav = document.getElementById('nav');
-    window.addEventListener('scroll', () => { nav.classList.toggle('scrolled', window.scrollY > 60); });
+    if (nav) {
+        window.addEventListener('scroll', () => { nav.classList.toggle('scrolled', window.scrollY > 60); });
+    }
     const sections = document.querySelectorAll('section[id]');
     const links = document.querySelectorAll('.nav-link');
     const obs = new IntersectionObserver(entries => {
@@ -529,16 +452,8 @@ function initCounters() {
 }
 
 // ============================================================
-// INSTAGRAM API LOGIC (User Provided)
+// INSTAGRAM UI LOGIC
 // ============================================================
-const BASE = 'https://graph.instagram.com';
-const FIELDS = 'id,caption,media_type,media_url,thumbnail_url,timestamp,like_count,permalink';
-
-let allMedia = [];
-let albumChildren = {};
-let currentAlbumItems = [];
-let currentSlideIndex = 0;
-let galleryFilter = 'all';
 
 // Initialize Plyr
 const player = new Plyr('#lightbox-video', {
@@ -548,56 +463,6 @@ const player = new Plyr('#lightbox-video', {
     resetOnEnd: true,
     loop: { active: true }
 });
-
-async function fetchInstagram() {
-    const token = CONFIG.ACCESS_TOKEN;
-    if (!token || token === 'YOUR_INSTAGRAM_ACCESS_TOKEN') {
-        showTokenSetup();
-        return;
-    }
-    try {
-        const res = await fetch(`${BASE}/me/media?fields=${FIELDS}&limit=100&access_token=${token}`);
-        const data = await res.json();
-        if (data.error) throw new Error(data.error.message);
-        allMedia = data.data || [];
-
-        const albumPromises = allMedia
-            .filter(m => m.media_type === 'CAROUSEL_ALBUM')
-            .map(async (album) => {
-                try {
-                    const cRes = await fetch(`${BASE}/${album.id}/children?fields=id,media_url,media_type,timestamp,thumbnail_url&access_token=${token}`);
-                    const cData = await cRes.json();
-                    albumChildren[album.id] = cData.data || [];
-                } catch (e) {
-                    console.error(`Failed to fetch children for album ${album.id}`, e);
-                    albumChildren[album.id] = [];
-                }
-            });
-
-        await Promise.all(albumPromises);
-        fetchProfile(token);
-        renderReels();
-        renderPosts();
-        renderGallery();
-    } catch (err) {
-        showError(err.message);
-    }
-}
-
-async function fetchProfile(token) {
-    try {
-        const res = await fetch(`${BASE}/me?fields=followers_count,media_count&access_token=${token}`);
-        const data = await res.json();
-        const statPosts = document.getElementById('stat-posts');
-        const statFollowers = document.getElementById('stat-followers');
-        if (data.media_count && statPosts) statPosts.textContent = data.media_count + '+';
-        if (data.followers_count && statFollowers) {
-            const n = data.followers_count;
-            const s = n >= 1000 ? (n / 1000).toFixed(1) + 'K' : n;
-            statFollowers.textContent = s;
-        }
-    } catch (e) { }
-}
 
 function formatDate(ts) {
     return new Date(ts).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' });
@@ -655,7 +520,7 @@ function renderPosts() {
 
     wrapper.innerHTML = posts.map(p => {
         const isAlbum = p.media_type === 'CAROUSEL_ALBUM';
-        const children = isAlbum ? albumChildren[p.id] : [];
+        const children = isAlbum ? (albumChildren[p.id] || []) : [];
         const albumData = isAlbum ? b64Encode(JSON.stringify(children)) : '';
 
         return `
@@ -674,7 +539,7 @@ function renderPosts() {
                 ${isAlbum ? `
                     <div class="thumb-strip">
                     ${children.map((child, idx) => `
-                        <div class="thumb-item ${idx === 0 ? 'active' : ''}" 
+                        <div class="thumb-item ${idx === 0 ? 'active' : ''}"
                             onclick="updatePostPreview('${p.id}', '${child.media_url}', ${idx}, '${escCap(p.caption)}', '${albumData}')">
                         <img src="${child.media_type === 'VIDEO' ? (child.thumbnail_url || child.media_url) : child.media_url}" loading="lazy">
                         </div>
@@ -696,7 +561,8 @@ function renderPosts() {
 
 function updatePostPreview(postId, url, idx, caption, albumDataB64) {
     const img = document.getElementById(`post-cover-${postId}`);
-    if (img) img.src = url;
+    if (!img) return;
+    img.src = url;
     const card = img.closest('.post-card');
     card.querySelectorAll('.thumb-item').forEach((t, i) => { t.classList.toggle('active', i === idx); });
     const badge = card.querySelector('.album-badge');
@@ -708,10 +574,10 @@ function updatePostPreview(postId, url, idx, caption, albumDataB64) {
 
 function renderGallery(filter) {
     if (filter) galleryFilter = filter;
-    let container = document.getElementById('gallery-container');
+    const container = document.getElementById('gallery-container');
     if (!container) return;
 
-    let items = [];
+    const items = [];
     allMedia.forEach(m => {
         if (m.media_type === 'CAROUSEL_ALBUM') {
             const children = albumChildren[m.id] || [];
@@ -787,13 +653,11 @@ function showError(msg) {
 // ============================================================
 // LIGHTBOX & SLIDER
 // ============================================================
-let baseCaption = '';
-
 function openLightbox(src, caption, type = 'IMAGE', albumData = '', index = 0) {
     const lb = document.getElementById('lightbox');
     if (!lb) return;
     baseCaption = caption;
-    if (albumData) { currentAlbumItems = JSON.parse(b64Decode(albumData)); } 
+    if (albumData) { currentAlbumItems = JSON.parse(b64Decode(albumData)); }
     else { currentAlbumItems = [{ media_url: src, media_type: type }]; }
     currentSlideIndex = index;
     renderSlide();
@@ -808,6 +672,7 @@ function openLightbox(src, caption, type = 'IMAGE', albumData = '', index = 0) {
 
 function renderSlide() {
     const item = currentAlbumItems[currentSlideIndex];
+    if (!item) return;
     const img = document.getElementById('lightbox-img');
     const videoWrap = document.getElementById('video-wrapper');
     const cap = document.getElementById('lightbox-caption');
@@ -852,7 +717,7 @@ function closeLightbox() {
     currentSlideIndex = 0;
 }
 
-// Global expose
+// Global expose (needed for inline onclick handlers)
 window.openLightbox = openLightbox;
 window.closeLightbox = closeLightbox;
 window.prevSlide = prevSlide;
@@ -906,4 +771,4 @@ const observer = new IntersectionObserver(entries => {
 }, { threshold: 0.1 });
 document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
 
-// Initialize on page load is handled by the preloader callback calling initSite()
+// Initialization is handled by the preloader callback calling initSite()
