@@ -3,13 +3,88 @@
 // ============================================================
 // CONFIG — Instagram Basic Display API
 // ============================================================
-const CONFIG = {
-    ACCESS_TOKEN: 'EAAN3PZCvR1aABSxUXSeBAWEPtiLPdlXSYK7I7HHZBmcPmzlL8lFERZCK4OOvHooxgAP4boqZA0Pu54cloLoZAUTJFTcVB1c8cP68bwB9e46SLozxnKNbD3T3aEqxeXln6r5y7CBMuwFCypLV2PgqZAtVMbiii4Ei7XOIScT77hyKHRcN409cxIYvvF5hOBEx6dc5JAOWFsEIBD8BBRLHwSREZAUPlafiSDi80D82ydLNM6G9Rvzc8vCSQZDZD',
-    USERNAME: 'rcreatorix',
-    REELS_LIMIT: 50,
-    POSTS_LIMIT: 50,
-    GALLERY_LIMIT: 60,
-};
+// const CONFIG = {
+//     ACCESS_TOKEN: 'EAAN3PZCvR1aABSxUXSeBAWEPtiLPdlXSYK7I7HHZBmcPmzlL8lFERZCK4OOvHooxgAP4boqZA0Pu54cloLoZAUTJFTcVB1c8cP68bwB9e46SLozxnKNbD3T3aEqxeXln6r5y7CBMuwFCypLV2PgqZAtVMbiii4Ei7XOIScT77hyKHRcN409cxIYvvF5hOBEx6dc5JAOWFsEIBD8BBRLHwSREZAUPlafiSDi80D82ydLNM6G9Rvzc8vCSQZDZD',
+//     USERNAME: 'rcreatorix',
+//     REELS_LIMIT: 50,
+//     POSTS_LIMIT: 50,
+//     GALLERY_LIMIT: 60,
+// };
+
+async function fetchInstagram() {
+    const token = CONFIG.ACCESS_TOKEN;
+
+    if (!token || token === 'EAAN3PZCvR1aABSxUXSeBAWEPtiLPdlXSYK7I7HHZBmcPmzlL8lFERZCK4OOvHooxgAP4boqZA0Pu54cloLoZAUTJFTcVB1c8cP68bwB9e46SLozxnKNbD3T3aEqxeXln6r5y7CBMuwFCypLV2PgqZAtVMbiii4Ei7XOIScT77hyKHRcN409cxIYvvF5hOBEx6dc5JAOWFsEIBD8BBRLHwSREZAUPlafiSDi80D82ydLNM6G9Rvzc8vCSQZDZD') {
+        showTokenSetup();
+        return;
+    }
+
+    try {
+        const params = new URLSearchParams({
+            fields: FIELDS,
+            limit: '100',
+            access_token: token
+        });
+
+        const url = `${BASE}/me/media?${params.toString()}`;
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (!response.ok || data.error) {
+            console.error('Instagram API Error:', {
+                status: response.status,
+                error: data.error
+            });
+
+            throw new Error(
+                data.error?.message ||
+                `Instagram API request failed: ${response.status}`
+            );
+        }
+
+        allMedia = data.data || [];
+
+        const albums = allMedia.filter(
+            media => media.media_type === 'CAROUSEL_ALBUM'
+        );
+
+        await Promise.all(
+            albums.map(async album => {
+                const albumUrl =
+                    `${BASE}/${album.id}/children?` +
+                    new URLSearchParams({
+                        fields: 'id,media_url,media_type,timestamp,thumbnail_url',
+                        access_token: token
+                    });
+
+                const albumResponse = await fetch(albumUrl);
+                const albumData = await albumResponse.json();
+
+                if (!albumResponse.ok || albumData.error) {
+                    console.error(
+                        `Album ${album.id} API error:`,
+                        albumData.error
+                    );
+
+                    albumChildren[album.id] = [];
+                    return;
+                }
+
+                albumChildren[album.id] = albumData.data || [];
+            })
+        );
+
+        await fetchProfile(token);
+
+        renderReels();
+        renderPosts();
+        renderGallery();
+
+    } catch (error) {
+        console.error('Instagram feed failed:', error);
+        showError(error.message);
+    }
+}
 
 // ============================================================
 // CORE PORTFOLIO LOGIC (Three.js, GSAP, Preloader)
